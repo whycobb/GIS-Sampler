@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.14.1/css/ol.css" type="text/css">
+
+		<style>
+			.map {
+				height: 512px;
+				width: 1024px;
+			}
+		</style>
+		<script src="https://cdn.jsdelivr.net/gh/openlayers/openlayers.github.io@master/en/v6.14.1/build/ol.js"></script>
+		<title>GIS Map Download</title>
+	</head>
+	<body>
+		<h2>Robust & Fully-Functional GIS Toolkit</h2>
+		<p>
+			<button id="export-png"> Download as PNG</button>
+			<button id="get-view">Get View</button>
+		</p>
+		<p>
+		<button id="set-view-Donetsk">Focus on Donetsk</button>
+		<button id="set-view-Ukraine">Focus on Ukraine</button>
+		<button id="set-view-Europe">Focus on Europe</button>
+		<button id="set-view-London">Focus on London</button>
+		<button id="set-view-Braincave">Focus on Braincave</button>
+		</p>
+		<p>
+		<button id="set-halfK">0.5K</button>
+		<button id="set-1K">1K</button>
+		<button id="set-2K">2K</button>
+		<button id="set-4K">4K</button>
+		</p>
+		<p>
+		<button class="showLayer" id="showLayer_OSMBasemap" data-target="OSM Basemap">Show OSM Basemap</button>
+		<button class="showLayer" id="showLayer_ARCGISHnR" data-target="ARCGIS Highways and Roads">Show ARCGIS Features</button>
+		<button class="showLayer" id="showLayer_MapTilerElevation" data-target="MapTiler Elevation">Show MapTiler Elevation</button>
+		<button class="showLayer" id="showLayer_ARCGISElevation" data-target="ARCGIS Elevation">Show ARCGIS Elevation</button>
+		<button class="showLayer" id="showLayer_MapTilerSatellite" data-target="MapTiler Satellite">Show MapTiler Satellite</button>
+		<button class="showLayer" id="showLayer_StamenOutlines" data-target="Stamen Outlines">Show Stamen Outlines</button>
+		<button class="showLayer" id="showLayer_VectorBorders" data-target="Vector Borders">Show Vector Borders</button>
+		</p>
+		<a id="image-download" download="mapview.png"></a>
+		<div id="map" class="map"></div>
+		<script type="text/javascript">
+		
+			document.getElementById('showLayer_ARCGISHnR').disabled = true;
+			document.getElementById('showLayer_ARCGISElevation').disabled = true;
+			document.getElementById('showLayer_VectorBorders').disabled = true;
+		
+			let mapRes = [ parseInt(getComputedStyle(document.getElementById("map")).width), parseInt(getComputedStyle(document.getElementById("map")).height) ];
+			let mapFactor = [ Math.log2(mapRes[0]), Math.log2(mapRes[1]) ];
+			let layerNamesArray = ['OSM Basemap'];
+			
+			console.log( "Map Resolution is: ", mapRes );
+			console.log( "Map factor is: ", mapFactor );
+			
+			var imgProjection = new ol.proj.Projection({	//Used for ARCGis elevation, which isn't working. So this may be set up wrong.
+				code: 'pixel',
+				units: 'pixels',
+				extent: [0, 0, parseInt(getComputedStyle(document.getElementById("map")).width), parseInt(getComputedStyle(document.getElementById("map")).height)]
+			});
+			
+			
+			var map = new ol.Map({
+				target: 'map',
+				layers: [
+					createOSMBasemap()
+				],
+				
+				view: new ol.View({	
+					center: ol.proj.fromLonLat([31, 48.55]),			//center on all of Ukraine
+					zoom: mapFactor[0] - 4.2											//center on all of Ukraine
+				})
+			});
+			
+	//		console.log("Map object is: ", map);
+	//		console.log("View object is: ", map.getView());
+	//		console.log("Layers are: ", map.getLayers());
+	
+			function showLayer( layerName = 'OSM Basemap' ) {
+				layerNamesArray = [layerName];
+				
+				createLayers();
+			}
+			
+			//map layerNamesArray to actual layers
+			function createLayers() {
+				console.log("Creating layers: ", layerNamesArray);
+				
+				map.setLayerGroup( new ol.layer.Group() );
+				
+				if (layerNamesArray.includes('OSM Basemap')) map.addLayer( createOSMBasemap() );
+				if (layerNamesArray.includes('ARCGIS Highways and Roads')) map.addLayer( createARCGISHnR() );
+				if (layerNamesArray.includes('MapTiler Elevation')) map.addLayer( createMapTilerElevation() );
+				if (layerNamesArray.includes('ARCGIS Elevation')) map.addLayer( createARCGISElevation() );
+				if (layerNamesArray.includes('MapTiler Satellite')) map.addLayer( createMapTilerSatellite() );
+				if (layerNamesArray.includes('Stamen Outlines')) map.addLayer( createStamenOutlines() );
+				if (layerNamesArray.includes('Vector Borders')) createVectorBorders().forEach( element => map.addLayer(element) );
+				
+				
+				
+				
+		//		map.addLayer( createVectorBorders() );	//will have to reformat this
+			}
+			
+			function  createOSMBasemap() {
+				let newLayer = new ol.layer.Tile({
+					name: 'OSM Basemap',
+					source: new ol.source.OSM()
+				});
+				
+				return newLayer;
+			}
+			
+			//I believe this is ARCGis's highways and roads layer, but their server looks overloaded right now so I can't check.
+			function  createARCGISHnR() {
+				let newLayer = new ol.layer.Tile({
+					name: 'ARCGIS Highways and Roads',
+					source: new ol.source.TileArcGISRest({
+						url: 'https://sampleserver1.arcgisonline.com/ArcGIS/rest/services/Specialty/ESRI_StateCityHighway_USA/MapServer',
+					})
+				});
+				
+				return newLayer;
+			}
+			
+			function createStamenOutlines() {
+				let newLayer = new ol.layer.Tile({
+					name: 'Stamen Outlines',
+					source: new ol.source.Stamen({		//what is a stamen?
+						layer: 'toner',
+					})
+				});
+				
+				return newLayer;
+			}
+			
+			//ARCGis elevation map... in theory. Not working right now - either OpenLayers doesn't configure the canvas for HDR textures, or I'm not fetching it right.
+			function  createARCGISElevation() {
+				let newLayer = new ol.layer.Image({
+						name: 'ARCGIS Elevation',
+						source: new ol.source.ImageStatic({
+							url:"https://elevation.arcgis.com/arcgis/rest/services/WorldElevation/Terrain/ImageServer",
+							imageSize: [imgProjection.getExtent().width, imgProjection.getExtent().height],	//this layer didn't work with these values hardcoded, either
+							imageExtent: imgProjection.getExtent(),
+							projection: imgProjection,
+							center: ol.extent.getCenter(imgProjection.getExtent()),
+							extent: imgProjection.getExtent()
+						})
+					});
+				
+				return newLayer;
+			}
+			
+			function createMapTilerElevation() {
+				let newLayer = new ol.layer.Tile({	
+					name: 'MapTiler Elevation',
+					opacity: 1.0,
+					source: new ol.source.XYZ({
+						url:
+							'https://api.maptiler.com/tiles/terrain-rgb/{z}/{x}/{y}.png?key=' + 'NoQfx0CEMoGRPZe4iqVF',
+						maxZoom: 10,
+						tileSize: 512,
+						crossOrigin: 'anonymous',
+					})
+				});
+				
+				return newLayer;
+			}
+			
+			function createMapTilerSatellite() {
+				let newLayer = new ol.layer.Tile({	
+					name: 'MapTiler Satellite',
+					opacity: 1.0,
+					source: new ol.source.TileJSON({
+						url:
+							'https://api.maptiler.com/tiles/satellite-mediumres/tiles.json?key=' + 'NoQfx0CEMoGRPZe4iqVF',
+						maxZoom: 12,
+						tileSize: 256,
+						crossOrigin: 'anonymous',
+					})
+				});
+				
+				return newLayer;
+			}
+			
+			//This function returns an array of layers. How strange!
+			function createVectorBorders() {
+				let newLayer = [
+	/*				new ol.layer.Vector({		//geojson-based full countries (coastline + boundaries), filled in with translucent white
+						name: 'Countries',
+						opacity: 0.0,
+						source: new ol.source.Vector({
+							format: new ol.format.GeoJSON(),
+							url: '../../Assets/GIS/WB_Boundaries_GeoJSON_highres/WB_countries_Admin0.geojson'
+						}),
+					}),			//*/
+					
+					new ol.layer.Vector({
+						name: 'Boundaries',
+						opacity: 1.0,
+						source: new ol.source.Vector({
+							format: new ol.format.GeoJSON(),
+							url: '../../Assets/GIS/WB_Boundaries_GeoJSON_highres/WB_Admin0_boundary_lines.geojson'
+						}),
+					}),
+					
+					new ol.layer.Vector({		//geojson-based coastlines
+						name: 'Coastlines',
+						opacity: 1.0,
+						source: new ol.source.Vector({
+							format: new ol.format.GeoJSON(),
+							url: '../../Assets/GIS/WB_Boundaries_GeoJSON_highres/WB_Coastlines.geojson'
+						}),
+					})
+				]
+				
+				return newLayer;
+			}
+	
+			//button function - get name of layer to show
+			document.querySelectorAll('.showLayer').forEach(item => {
+				item.addEventListener('click', function () {
+					showLayer(item.dataset.target);
+				})
+			});
+	
+	
+			//Takes two-element float array
+			function resizeMap( newMapDims) {
+				let oldFactor = mapFactor;
+				let oldZoom = map.getView().getZoom();
+			
+				document.getElementById("map").style.width = newMapDims[0] + 'px';
+				document.getElementById("map").style.height = newMapDims[1] + 'px';
+				map.updateSize();
+				
+				mapRes = [ parseInt(getComputedStyle(document.getElementById("map")).width), parseInt(getComputedStyle(document.getElementById("map")).height) ];
+				mapFactor = [ Math.log2(mapRes[0]), Math.log2(mapRes[1]) ];
+				
+				map.getView().setZoom( oldZoom - (oldFactor[0] - mapFactor[0]) );
+			};
+			
+			//Takes zoom offset (float) and two-float position array
+			function setMapView( newZoom = 10, newCenter = [0, 0] ) {
+				map.getView().setZoom( mapFactor[0] - ( 10 - newZoom ) );
+				map.getView().setCenter( ol.proj.fromLonLat( newCenter ) );
+			};
+			
+			
+			document.getElementById('set-halfK').addEventListener('click', function () {
+				resizeMap([512, 256]);
+			});
+		
+			document.getElementById('set-1K').addEventListener('click', function () {
+				resizeMap([1024, 512]);
+			});
+		
+			document.getElementById('set-2K').addEventListener('click', function () {
+				resizeMap([2048, 1024]);
+			});
+		
+			document.getElementById('set-4K').addEventListener('click', function () {
+				resizeMap([4096, 2048]);
+			});
+	
+			
+			
+			//Set view center + zoom programmatically
+			document.getElementById('set-view-Donetsk').addEventListener('click', function () {
+				setMapView( 9.82, [ 37.81, 48.02 ] );
+			});
+			
+			document.getElementById('set-view-Ukraine').addEventListener('click', function () {
+				setMapView( 5.8, [31, 48.55] );
+			});
+			
+			document.getElementById('set-view-Europe').addEventListener('click', function () {
+				setMapView( 4.25, [ 22.72, 49.33 ]);
+			});
+			
+			document.getElementById('set-view-London').addEventListener('click', function () {
+				setMapView( 8.23, [ 0.08, 51.46 ]);
+			});
+			
+			document.getElementById('set-view-Braincave').addEventListener('click', function () {
+				setMapView( 15.40, [ -77.35, 39.40 ]);
+			});
+			
+			
+			//Pan + zoom the map, then export with this so you can save the exact view.
+			document.getElementById('get-view').addEventListener('click', function () {
+				
+				let currentZoom = parseFloat(map.getView().getZoom()).toFixed(3);
+				let currentCenter = map.getView().getCenter();
+				let currentLonLat = ol.proj.toLonLat(currentCenter);
+				
+				//I like having zeroes at the end of integers. This is important to me.
+				currentLonLat = currentLonLat.map(function(e){
+					return(parseFloat(e).toFixed(2));
+				});
+				
+				console.log("--Printing view:\r\n\tCurrent zoom: " + currentZoom + "\r\n\tCurrent center: (" +  currentLonLat[0] + ", " + currentLonLat[1] + ")");
+			});
+			
+			
+			document.getElementById('export-png').addEventListener('click', function () {
+				console.log("--Export map");
+			
+				map.once('rendercomplete', function () {
+					const mapCanvas = document.createElement('canvas');
+					const size = map.getSize();
+					mapCanvas.width = size[0];
+					mapCanvas.height = size[1];
+					const mapContext = mapCanvas.getContext('2d');
+					Array.prototype.forEach.call(
+						map.getViewport().querySelectorAll('.ol-layer canvas, canvas.ol-layer'),
+						function (canvas) {	//yeesh so basically it builds a whole canvas
+							if (canvas.width > 0) {
+								const opacity =
+								canvas.parentNode.style.opacity || canvas.style.opacity;
+								mapContext.globalAlpha = opacity === '' ? 1 : Number(opacity);
+
+								const backgroundColor = canvas.parentNode.style.backgroundColor;
+								if (backgroundColor) {
+									mapContext.fillStyle = backgroundColor;
+									mapContext.fillRect(0, 0, canvas.width, canvas.height);
+								}
+
+								let matrix;
+								const transform = canvas.style.transform;
+								if (transform) {
+									// Get the transform parameters from the style's transform matrix
+									matrix = transform
+									.match(/^matrix\(([^\(]*)\)$/)[1]
+									.split(',')
+									.map(Number);
+								} else {
+									matrix = [
+										parseFloat(canvas.style.width) / canvas.width,
+										0,
+										0,
+										parseFloat(canvas.style.height) / canvas.height,
+										0,
+										0,
+									];
+								}
+								// Apply the transform to the export map context
+								CanvasRenderingContext2D.prototype.setTransform.apply(
+									mapContext,
+									matrix
+								);
+								mapContext.drawImage(canvas, 0, 0);
+							}
+						}
+					);
+					mapContext.globalAlpha = 1;
+					if (navigator.msSaveBlob) {
+						// link download attribute does not work on MS browsers
+						navigator.msSaveBlob(mapCanvas.msToBlob(), 'mapview.png');
+					} else {
+						const link = document.getElementById('image-download');
+						link.href = mapCanvas.toDataURL();
+						link.click();
+					}
+				});
+				map.renderSync();
+			});
+			
+			
+		</script>
+	</body>
+</html>
